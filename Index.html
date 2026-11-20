@@ -1,0 +1,348 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>QUINCHO GYM</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d71920">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+html, body {
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:white;font-family:Arial,sans-serif}
+header{background:#d71920;padding:22px;text-align:center}
+header h1{margin:0;font-size:27px}
+header p{max-resolution: res;6px 0 0}
+main{padding:15px;max-width:850px;margin:auto}
+@media (max-width:600px){
+  header{padding:28px 15px}
+  header h1{font-size:30px}
+  main{padding:12px}
+  .card{padding:18px}
+  button,input,select,textarea{
+    font-size:16px;
+  }
+}.card{background:#202020;padding:16px;border-radius:12px;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{text-align:center;background:#292929;padding:15px;border-radius:10px}
+.stat strong{display:block;font-size:26px;color:#ff3434}
+h2{font-size:20px;margin-top:5px}
+input,select,textarea{width:100%;padding:12px;margin:6px 0 12px;background:#303030;color:white;border:1px solid #555;border-radius:7px;font-size:15px}
+button{background:#d71920;color:white;border:0;padding:12px 15px;border-radius:7px;font-weight:bold;margin:4px;cursor:pointer}
+button.secondary{background:#444}
+button.delete{background:#8c1515}
+button.small{padding:8px;font-size:12px}
+label{font-size:13px;color:#ccc}
+.student{border:1px solid #444;padding:13px;border-radius:9px;margin:10px 0}
+.student h3{margin:0 0 7px}
+.muted{color:#aaa;font-size:13px}
+.hidden{display:none}
+.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{flex:1}
+hr{border:0;border-top:1px solid #444;margin:15px 0}
+</style>
+</head>
+<body>
+<header>
+<h1>QUINCHO GYM</h1>
+<p>GESTIÓN DE ALUMNOS</p>
+</header>
+<main>
+<div class="card">
+<h2>Panel principal</h2>
+<div class="stats">
+<div class="stat"><strong id="total">0</strong>Alumnos</div>
+<div class="stat"><strong id="activos">0</strong>Activos</div>
+<div class="stat"><strong id="inactivos">0</strong>Inactivos</div>
+<div class="stat"><strong id="mes">0</strong>Ingresos este mes</div>
+</div>
+</div>
+
+<div class="tabs">
+<button onclick="mostrar('lista')">Alumnos</button>
+<button onclick="nuevo()">Agregar alumno</button>
+</div>
+
+<section id="lista" class="card">
+<h2>Alumnos registrados</h2>
+<input id="buscar" placeholder="Buscar alumno..." oninput="dibujar()">
+<div id="alumnos"></div>
+</section>
+
+<section id="formulario" class="card hidden">
+<h2 id="tituloForm">Nuevo alumno</h2>
+<input type="hidden" id="id">
+<label>Nombre y apellido</label>
+<input id="nombre" placeholder="Nombre completo">
+<label>Edad</label>
+<input id="edad" type="number" placeholder="Edad">
+<label>Teléfono</label>
+<input id="telefono" placeholder="Teléfono">
+<label>Fecha de ingreso</label>
+<input id="fecha" type="date">
+<label>Objetivo</label>
+<select id="objetivo">
+<option>Ganar fuerza</option>
+<option>Mejorar resistencia</option>
+<option>Ganar masa muscular</option>
+<option>Mejorar condición física</option>
+<option>Otro</option>
+</select>
+<label>Estado</label>
+<select id="estado">
+<option>Activo</option>
+<option>Inactivo</option>
+</select>
+<button onclick="guardar()">Guardar alumno</button>
+<button class="secondary" onclick="mostrar('lista')">Cancelar</button>
+</section>
+
+<section id="perfil" class="card hidden">
+<div id="datosPerfil"></div>
+<hr>
+<h2>Rutina de entrenamiento</h2>
+<input id="ejercicio" placeholder="Nombre del ejercicio">
+<div class="stats">
+<input id="series" type="number" placeholder="Series">
+<input id="reps" placeholder="Repeticiones">
+</div>
+<input id="obsEjercicio" placeholder="Observaciones">
+<button onclick="agregarEjercicio()">Agregar ejercicio</button>
+<div id="rutina"></div>
+<hr>
+<h2>Registrar progreso</h2>
+<input id="peso" placeholder="Dato de progreso (ej. peso levantado)">
+<textarea id="notaProgreso" placeholder="Observaciones del entrenador"></textarea>
+<button onclick="agregarProgreso()">Guardar progreso</button>
+<div id="progresos"></div>
+<hr>
+<button class="secondary" onclick="mostrar('lista')">Volver a alumnos</button>
+</section>
+</main>
+
+<script>
+let alumnos=JSON.parse(localStorage.getItem('quinchoAlumnos')||'[]');
+let actual=null;
+
+function guardarDatos(){
+ localStorage.setItem('quinchoAlumnos',JSON.stringify(alumnos));
+ dibujar();
+}
+
+function mostrar(seccion){
+ ['lista','formulario','perfil'].forEach(x=>{
+  document.getElementById(x).classList.add('hidden');
+ });
+ document.getElementById(seccion).classList.remove('hidden');
+}
+
+function actualizar(){
+ document.getElementById('total').textContent=alumnos.length;
+ document.getElementById('activos').textContent=alumnos.filter(a=>a.estado==='Activo').length;
+ document.getElementById('inactivos').textContent=alumnos.filter(a=>a.estado==='Inactivo').length;
+ let mes=new Date().toISOString().slice(0,7);
+ document.getElementById('mes').textContent=alumnos.filter(a=>a.fecha&&a.fecha.startsWith(mes)).length;
+}
+
+function dibujar(){
+ actualizar();
+ let q=document.getElementById('buscar').value.toLowerCase();
+ let cont=document.getElementById('alumnos');
+ cont.innerHTML='';
+ let filtrados=alumnos.filter(a=>a.nombre.toLowerCase().includes(q));
+ if(!filtrados.length){
+  cont.innerHTML='<p class="muted">No hay alumnos para mostrar.</p>';
+ }
+ filtrados.forEach(a=>{
+  let div=document.createElement('div');
+  div.className='student';
+  let h=document.createElement('h3');
+  h.textContent=a.nombre;
+  let p=document.createElement('p');
+  p.className='muted';
+  p.textContent='Edad: '+a.edad+' | Estado: '+a.estado;
+  let b=document.createElement('button');
+  b.textContent='Ver perfil';
+  b.onclick=()=>verPerfil(a.id);
+  let e=document.createElement('button');
+  e.className='secondary';
+  e.textContent='Editar';
+  e.onclick=()=>editar(a.id);
+  let d=document.createElement('button');
+  d.className='delete';
+  d.textContent='Eliminar';
+  d.onclick=()=>eliminar(a.id);
+  div.append(h,p,b,e,d);
+  cont.append(div);
+ });
+}
+
+function nuevo(){
+ document.getElementById('tituloForm').textContent='Nuevo alumno';
+ document.getElementById('id').value='';
+ ['nombre','edad','telefono','fecha'].forEach(x=>document.getElementById(x).value='');
+ document.getElementById('objetivo').value='Ganar fuerza';
+ document.getElementById('estado').value='Activo';
+ mostrar('formulario');
+}
+
+function guardar(){
+ let nombre=document.getElementById('nombre').value.trim();
+ if(!nombre){alert('Ingresá el nombre del alumno');return;}
+ let id=document.getElementById('id').value;
+ let datos={
+  nombre,
+  edad:document.getElementById('edad').value,
+  telefono:document.getElementById('telefono').value,
+  fecha:document.getElementById('fecha').value,
+  objetivo:document.getElementById('objetivo').value,
+  estado:document.getElementById('estado').value
+ };
+ if(id){
+  let a=alumnos.find(x=>x.id==id);
+  Object.assign(a,datos);
+ }else{
+  alumnos.push({...datos,id:Date.now(),rutina:[],progresos:[]});
+ }
+ guardarDatos();
+ mostrar('lista');
+}
+
+function editar(id){
+ let a=alumnos.find(x=>x.id==id);
+ document.getElementById('tituloForm').textContent='Editar alumno';
+ document.getElementById('id').value=a.id;
+ ['nombre','edad','telefono','fecha','objetivo','estado'].forEach(x=>document.getElementById(x).value=a[x]||'');
+ mostrar('formulario');
+}
+
+function eliminar(id){
+ if(confirm('¿Eliminar este alumno y sus registros?')){
+  alumnos=alumnos.filter(a=>a.id!=id);
+  guardarDatos();
+ }
+}
+
+function duracion(fecha){
+ if(!fecha)return 'Sin fecha registrada';
+ let dias=Math.floor((new Date()-new Date(fecha+'T00:00:00'))/86400000);
+ if(dias<0)return 'Fecha futura';
+ let meses=Math.floor(dias/30);
+ let años=Math.floor(meses/12);
+ meses%=12;
+ return (años?años+' año(s) ':'')+meses+' mes(es)';
+}
+
+function verPerfil(id){
+ actual=alumnos.find(a=>a.id==id);
+ document.getElementById('datosPerfil').innerHTML='';
+ let h=document.createElement('h2');
+ h.textContent=actual.nombre;
+ let p=document.createElement('p');
+ p.textContent='Edad: '+actual.edad+' | Teléfono: '+actual.telefono;
+ let p2=document.createElement('p');
+ p2.textContent='Entrena desde: '+(actual.fecha||'Sin fecha')+' ('+duracion(actual.fecha)+')';
+ let p3=document.createElement('p');
+ p3.textContent='Objetivo: '+actual.objetivo+' | Estado: '+actual.estado;
+ document.getElementById('datosPerfil').append(h,p,p2,p3);
+ document.getElementById('ejercicio').value='';
+ document.getElementById('series').value='';
+ document.getElementById('reps').value='';
+ document.getElementById('obsEjercicio').value='';
+ dibujarRutina();
+ dibujarProgresos();
+ mostrar('perfil');
+}
+
+function agregarEjercicio(){
+ let nombre=document.getElementById('ejercicio').value.trim();
+ if(!nombre){alert('Escribí el ejercicio');return;}
+ actual.rutina.push({
+  nombre,
+  series:document.getElementById('series').value,
+  reps:document.getElementById('reps').value,
+  obs:document.getElementById('obsEjercicio').value
+ });
+ guardarDatos();
+ dibujarRutina();
+ document.getElementById('ejercicio').value='';
+ document.getElementById('series').value='';
+ document.getElementById('reps').value='';
+ document.getElementById('obsEjercicio').value='';
+}
+
+function dibujarRutina(){
+ let c=document.getElementById('rutina');
+ c.innerHTML='';
+ actual.rutina.forEach((r,i)=>{
+  let d=document.createElement('div');
+  d.className='student';
+  let p=document.createElement('p');
+  p.textContent=r.nombre+' — '+r.series+' series x '+r.reps;
+  let small=document.createElement('p');
+  small.className='muted';
+  small.textContent=r.obs;
+  let b=document.createElement('button');
+  b.className='delete small';
+  b.textContent='Quitar';
+  b.onclick=()=>{
+   actual.rutina.splice(i,1);
+   guardarDatos();
+   dibujarRutina();
+  };
+  d.append(p,small,b);
+  c.append(d);
+ });
+}
+
+function agregarProgreso(){
+ let peso=document.getElementById('peso').value.trim();
+ let nota=document.getElementById('notaProgreso').value.trim();
+ if(!peso&&!nota){alert('Agregá algún dato de progreso');return;}
+ actual.progresos.push({
+  fecha:new Date().toLocaleDateString('es-AR'),
+  peso,nota
+ });
+ guardarDatos();
+ document.getElementById('peso').value='';
+ document.getElementById('notaProgreso').value='';
+ dibujarProgresos();
+}
+
+function dibujarProgresos(){
+ let c=document.getElementById('progresos');
+ c.innerHTML='';
+ actual.progresos.slice().reverse().forEach(p=>{
+  let d=document.createElement('div');
+  d.className='student';
+  let h=document.createElement('h3');
+  h.textContent=p.fecha;
+  let t=document.createElement('p');
+  t.textContent=p.peso;
+  let n=document.createElement('p');
+  n.textContent=p.nota;
+  d.append(h,t,n);
+  c.append(d);
+ });
+}
+
+dibujar();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .catch(error => console.log("Error:", error));
+  });
+}
+</script>
+</body>
+</html>
